@@ -1,0 +1,379 @@
+---
+title: Regex Patterns
+description: Deep dive into the regular expressions used by CADS for text cleaning
+---
+
+# Regular Expression Patterns
+
+CADS uses sophisticated regular expressions to identify and remove text artifacts. This guide explains the syntax, behavior, and customization of each pattern.
+
+## Pattern Anatomy
+
+Every regex pattern in CADS follows this structure:
+
+```typescript
+const pattern = new RegExp(`pattern_string`, "flags");
+```
+
+- **Pattern string**: The regex syntax defining what to match
+- **Flags**: Modifiers that control matching behavior
+
+## Regex Flags Used
+
+<Tabs>
+  <Tab title="g - Global">
+    **Global matching** - Find all matches in the text, not just the first one.
+    
+    ```typescript
+    // Without 'g': matches only first occurrence
+    "page 1 page 2".replace(/page \d+/, "X")  // "X page 2"
+    
+    // With 'g': matches all occurrences
+    "page 1 page 2".replace(/page \d+/g, "X")  // "X X"
+    ```
+  </Tab>
+  
+  <Tab title="m - Multiline">
+    **Multiline mode** - `^` and `$` match line start/end, not just string start/end.
+    
+    ```typescript
+    // Without 'm': ^ only matches start of entire string
+    "line 1\nline 2".match(/^line/g)  // ["line"] (only first)
+    
+    // With 'm': ^ matches start of each line
+    "line 1\nline 2".match(/^line/gm)  // ["line", "line"] (both)
+    ```
+  </Tab>
+  
+  <Tab title="u - Unicode">
+    **Unicode mode** - Properly handles Unicode property escapes like `\p{P}`.
+    
+    ```typescript
+    // With 'u': \p{P} matches any Unicode punctuation
+    "Hello! ¡Hola!".match(/\p{P}/gu)  // ["!", "¡", "!"]
+    ```
+  </Tab>
+</Tabs>
+
+## Pattern Reference
+
+### 1. Roman Numeral Pattern
+
+**Source**: Line 18 of `clean_text.ts`
+
+```typescript clean_text.ts
+const romanNumeralRegex = new RegExp(`^\\s*[IVXLCDM]+\\s*\\n`, "m");
+```
+
+**Breakdown**:
+
+| Component | Meaning |
+|-----------|---------|
+| `^` | Start of a line (multiline mode) |
+| `\\s*` | Zero or more whitespace characters |
+| `[IVXLCDM]+` | One or more Roman numeral characters |
+| `\\s*` | Zero or more whitespace characters |
+| `\\n` | Newline character |
+
+**Matches**:
+- `III\n` → Removed
+- `  V  \n` → Removed (with surrounding spaces)
+- `XVIII\n` → Removed
+
+**Does NOT match**:
+- `III.` → No newline after
+- `three` → Not Roman numerals
+- `middle III text` → Not at line start
+
+<Tip>
+This pattern uses the `m` flag so `^` matches the start of any line, not just the start of the file.
+</Tip>
+
+### 2. Header/Footer Patterns
+
+Three patterns work together to remove headers and footers in different contexts.
+
+#### Pattern 2a: Middle of Sentence
+
+**Source**: Line 23 of `clean_text.ts`
+
+```typescript clean_text.ts
+const middleRegex = new RegExp(`(?<=\\S)\\s*${text}\\s*(?=\\S)`, "g");
+```
+
+**Breakdown**:
+
+| Component | Meaning |
+|-----------|---------|
+| `(?<=\\S)` | Positive lookbehind: must be preceded by non-whitespace |
+| `\\s*` | Zero or more whitespace characters |
+| `${text}` | The header/footer text to remove |
+| `\\s*` | Zero or more whitespace characters |
+| `(?=\\S)` | Positive lookahead: must be followed by non-whitespace |
+
+**Example**:
+```text
+"word Cien años de soledad word" → "word\nword"
+```
+
+<Note>
+Lookahead `(?=...)` and lookbehind `(?<=...)` assertions don't consume characters—they just check conditions.
+</Note>
+
+#### Pattern 2b: Sentence Boundary
+
+**Source**: Line 27 of `clean_text.ts`
+
+```typescript clean_text.ts
+const boundaryRegex = new RegExp(`(?<=\\p{P})\\s*${text}\\s*`, "gu");
+```
+
+**Breakdown**:
+
+| Component | Meaning |
+|-----------|---------|
+| `(?<=\\p{P})` | Positive lookbehind: must follow any punctuation |
+| `\\s*` | Zero or more whitespace characters |
+| `${text}` | The header/footer text |
+| `\\s*` | Zero or more whitespace characters |
+
+**Unicode Property**: `\\p{P}` matches any Unicode punctuation character:
+- Period (`.`)
+- Question mark (`?`)
+- Exclamation mark (`!`)
+- Comma (`,`)
+- Spanish punctuation (`¿`, `¡`)
+- And many more...
+
+**Example**:
+```text
+"sentence. Gabriel García Márquez Next" → "sentence.\nNext"
+```
+
+<Warning>
+The `u` flag is required for `\p{P}` to work. Without it, the pattern will fail with a syntax error.
+</Warning>
+
+#### Pattern 2c: End of File
+
+**Source**: Line 31 of `clean_text.ts`
+
+```typescript clean_text.ts
+const endRegex = new RegExp(`\\s*${text}\\s*$`, "g");
+```
+
+**Breakdown**:
+
+| Component | Meaning |
+|-----------|---------|
+| `\\s*` | Zero or more whitespace characters |
+| `${text}` | The header/footer text |
+| `\\s*` | Zero or more whitespace characters |
+| `$` | End of string |
+
+**Matches only at the very end of the file**.
+
+### 3. Page Number Patterns
+
+Three patterns handle page numbers in different positions.
+
+#### Pattern 3a: After Complete Sentence
+
+**Source**: Line 36 of `clean_text.ts`
+
+```typescript clean_text.ts
+const pageNumberAfterSentenceRegex = new RegExp(`(?<=\\.)\\s*\\n\\s*\\d+\\s*\\n`, "g");
+```
+
+**Breakdown**:
+
+| Component | Meaning |
+|-----------|---------|
+| `(?<=\\.)` | Must follow a period |
+| `\\s*` | Optional whitespace |
+| `\\n` | Newline |
+| `\\s*` | Optional whitespace |
+| `\\d+` | One or more digits (the page number) |
+| `\\s*` | Optional whitespace |
+| `\\n` | Newline |
+
+**Matches**:
+```text
+"end of sentence.\n42\nNext sentence"
+"period.  \n  123  \n  text"
+```
+
+**Replacement**: `\n\n` (double newline preserves paragraph break)
+
+#### Pattern 3b: In Paragraph Middle
+
+**Source**: Line 40 of `clean_text.ts`
+
+```typescript clean_text.ts
+const pageNumberInParagraphRegex = new RegExp(`\\s*\\n\\s*\\d+\\s*\\n`, "g");
+```
+
+**Breakdown**:
+
+| Component | Meaning |
+|-----------|---------|
+| `\\s*` | Optional whitespace |
+| `\\n` | Newline |
+| `\\s*` | Optional whitespace |
+| `\\d+` | One or more digits |
+| `\\s*` | Optional whitespace |
+| `\\n` | Newline |
+
+**Matches**: Page numbers on their own line, anywhere in the text.
+
+**Replacement**: `\n` (single newline rejoins the paragraph)
+
+<Note>
+This pattern is more general than Pattern 3a and will match page numbers after sentences too. That's why 3a runs first—it handles the special case before the general case.
+</Note>
+
+#### Pattern 3c: At End of File
+
+**Source**: Line 44 of `clean_text.ts`
+
+```typescript clean_text.ts
+const pageNumberAtEndRegex = new RegExp(`\\s*\\n\\s*\\d+\\s*$`, "g");
+```
+
+**Breakdown**:
+
+| Component | Meaning |
+|-----------|---------|
+| `\\s*` | Optional whitespace |
+| `\\n` | Newline |
+| `\\s*` | Optional whitespace |
+| `\\d+` | One or more digits |
+| `\\s*` | Optional whitespace |
+| `$` | End of string |
+
+**Matches only at the end of the file**.
+
+## Character Class Reference
+
+Common character classes used in CADS patterns:
+
+| Pattern | Matches | Example |
+|---------|---------|---------|
+| `\\s` | Any whitespace (space, tab, newline) | ` `, `\t`, `\n` |
+| `\\S` | Any non-whitespace | `a`, `1`, `@` |
+| `\\d` | Any digit | `0-9` |
+| `\\w` | Word character (letter, digit, underscore) | `a-z`, `A-Z`, `0-9`, `_` |
+| `[IVXLCDM]` | Any character in the set | `I`, `V`, `X`, `L`, `C`, `D`, `M` |
+| `\\p{P}` | Any Unicode punctuation | `.`, `!`, `?`, `,`, `;`, etc. |
+| `.` | Any character except newline | Any single character |
+
+## Assertions
+
+Non-consuming patterns that check conditions:
+
+| Assertion | Type | Meaning |
+|-----------|------|---------|
+| `^` | Anchor | Start of line (with `m` flag) |
+| `$` | Anchor | End of line (with `m` flag) |
+| `(?=...)` | Lookahead | Must be followed by... |
+| `(?!...)` | Negative lookahead | Must NOT be followed by... |
+| `(?<=...)` | Lookbehind | Must be preceded by... |
+| `(?<!...)` | Negative lookbehind | Must NOT be preceded by... |
+
+<Tip>
+Lookahead and lookbehind are "zero-width" — they don't include the matched characters in the result.
+</Tip>
+
+## Quantifiers
+
+Control how many times a pattern can repeat:
+
+| Quantifier | Meaning | Example |
+|------------|---------|---------|
+| `*` | 0 or more | `\\s*` matches "", " ", "  ", etc. |
+| `+` | 1 or more | `\\d+` matches "1", "42", "999", etc. |
+| `?` | 0 or 1 (optional) | `colou?r` matches "color" or "colour" |
+| `{n}` | Exactly n times | `\\d{4}` matches "2024" |
+| `{n,}` | n or more | `\\d{2,}` matches "42", "999", etc. |
+| `{n,m}` | Between n and m | `\\w{3,5}` matches 3-5 word chars |
+
+## Testing Patterns
+
+You can test regex patterns using Deno's REPL:
+
+```bash Testing a pattern
+deno
+```
+
+```typescript In Deno REPL
+// Test Roman numeral pattern
+const text = "III\nMuchos años después...";
+const pattern = /^\s*[IVXLCDM]+\s*\n/m;
+console.log(text.replace(pattern, ""));
+// Output: "Muchos años después..."
+
+// Test page number pattern
+const pageText = "sentence.\n42\nNext sentence";
+const pagePattern = /(?<=\.)\s*\n\s*\d+\s*\n/g;
+console.log(pageText.replace(pagePattern, "\n\n"));
+// Output: "sentence.\n\nNext sentence"
+```
+
+<Tip>
+Use online tools like [regex101.com](https://regex101.com) to visualize and test patterns. Make sure to select "JavaScript" flavor and enable the appropriate flags.
+</Tip>
+
+## Common Pitfalls
+
+<AccordionGroup>
+  <Accordion title="Forgetting to Escape Backslashes">
+    In JavaScript strings, backslashes must be escaped:
+    
+    ```typescript
+    // Wrong:
+    new RegExp("\s*")  // Syntax error
+    
+    // Right:
+    new RegExp("\\s*")  // Matches whitespace
+    ```
+  </Accordion>
+  
+  <Accordion title="Greedy vs. Non-Greedy Matching">
+    By default, quantifiers are greedy (match as much as possible):
+    
+    ```typescript
+    // Greedy: matches "everything"
+    "<b>one</b> <b>two</b>".replace(/<b>.*<\/b>/g, "X")
+    // Result: "X"
+    
+    // Non-greedy: matches each tag separately
+    "<b>one</b> <b>two</b>".replace(/<b>.*?<\/b>/g, "X")
+    // Result: "X X"
+    ```
+    
+    Add `?` after a quantifier to make it non-greedy: `*?`, `+?`, `??`
+  </Accordion>
+  
+  <Accordion title="Unicode Flag Required for Property Escapes">
+    Without the `u` flag, `\p{...}` syntax will fail:
+    
+    ```typescript
+    // Wrong:
+    new RegExp("\\p{P}", "g")  // Syntax error
+    
+    // Right:
+    new RegExp("\\p{P}", "gu")  // Works!
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Custom Patterns" icon="wand-magic-sparkles" href="/advanced/custom-patterns">
+    Learn how to create your own cleaning patterns
+  </Card>
+  <Card title="Examples" icon="code" href="/usage/examples">
+    See regex patterns in action with real examples
+  </Card>
+</CardGroup>

@@ -1,0 +1,98 @@
+---
+title: Introduction
+description: Clean and process literary text files with CADS, a powerful Deno CLI tool
+---
+
+# Welcome to CADS
+
+CADS (Cien Años De Soledad) is a specialized command-line tool for cleaning and processing literary text files. Built with Deno, it removes common artifacts like headers, footers, page numbers, and Roman numerals while preserving the natural flow and structure of your text.
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Get up and running with CADS in minutes
+  </Card>
+  <Card title="Command Reference" icon="terminal" href="/usage/command-reference">
+    Explore all available commands and options
+  </Card>
+  <Card title="Examples" icon="code" href="/usage/examples">
+    See real-world usage examples
+  </Card>
+  <Card title="Troubleshooting" icon="wrench" href="/advanced/troubleshooting">
+    Solutions to common issues
+  </Card>
+</CardGroup>
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Smart Header Removal" icon="heading">
+    Automatically detects and removes repeating headers and footers from scanned documents
+  </Card>
+  <Card title="Page Number Cleaning" icon="hashtag">
+    Intelligently removes page numbers while preserving paragraph flow
+  </Card>
+  <Card title="Roman Numeral Detection" icon="list-ol">
+    Strips chapter markers and Roman numerals from the start of sections
+  </Card>
+  <Card title="Text Preservation" icon="file-lines">
+    Maintains sentence structure and paragraph formatting throughout processing
+  </Card>
+  <Card title="Batch Processing" icon="layer-group">
+    Process multiple files in a single operation with consistent results
+  </Card>
+  <Card title="Regex Patterns" icon="magnifying-glass">
+    Powerful regular expression engine for custom text cleaning rules
+  </Card>
+</CardGroup>
+
+## Why CADS?
+
+When working with digitized literary texts, OCR scans, or PDF conversions, you often encounter repetitive artifacts that interfere with readability and text analysis:
+
+- **Headers and footers** appearing on every page
+- **Page numbers** breaking up sentences and paragraphs
+- **Chapter markers** and Roman numerals cluttering the text
+- **Formatting inconsistencies** from the scanning process
+
+CADS automates the cleanup process, saving hours of manual editing and producing clean, readable text files ready for analysis, archival, or republishing.
+
+## Use Cases
+
+<AccordionGroup>
+  <Accordion title="Digital Libraries & Archives">
+    Clean up scanned book collections for digital preservation and public access
+  </Accordion>
+  <Accordion title="Text Analysis & NLP">
+    Prepare clean text corpora for natural language processing and computational analysis
+  </Accordion>
+  <Accordion title="E-book Publishing">
+    Convert PDF or scanned texts into clean formats suitable for e-reader publishing
+  </Accordion>
+  <Accordion title="Literary Research">
+    Process primary source materials for academic research and citation
+  </Accordion>
+</AccordionGroup>
+
+## How It Works
+
+CADS uses sophisticated regex patterns to identify and remove common text artifacts while preserving the semantic structure of your documents:
+
+1. **Pattern Recognition** — Identifies headers, footers, and page numbers based on position and repetition
+2. **Context-Aware Cleaning** — Determines whether to replace artifacts with spaces, line breaks, or remove them entirely
+3. **Sentence Preservation** — Maintains proper sentence boundaries and paragraph structure
+4. **Output Generation** — Creates cleaned files in a dedicated output directory
+
+<Note>
+CADS is specifically designed for literary and narrative texts. For technical documents or structured data formats, you may need to customize the cleaning patterns.
+</Note>
+
+## Ready to Get Started?
+
+<CardGroup cols={2}>
+  <Card title="Install CADS" icon="download" href="/installation">
+    Install Deno and CADS on your system
+  </Card>
+  <Card title="Run Your First Clean" icon="play" href="/quickstart">
+    Process your first text file in under 60 seconds
+  </Card>
+</CardGroup>

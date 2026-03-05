@@ -1,0 +1,396 @@
+---
+title: Output Options
+description: Configure where and how CADS writes cleaned text files
+---
+
+# Output Configuration
+
+CADS provides simple but effective output configuration options. This guide covers directory structure, file naming, and output customization.
+
+## Default Output Behavior
+
+By default, CADS creates a `cleaned/` directory and writes output files with the same name as the input file.
+
+### Directory Structure
+
+```
+project/
+├── 01.md                 # Input file
+├── 02.md                 # Input file
+├── clean_text.ts         # CADS script
+└── cleaned/              # Output directory (auto-created)
+    ├── 01.md             # Cleaned output
+    └── 02.md             # Cleaned output
+```
+
+<Note>
+The `cleaned/` directory is created automatically if it doesn't exist, using `Deno.mkdir("cleaned", { recursive: true })`.
+</Note>
+
+## Output Directory
+
+**Source**: Lines 47-48 of `clean_text.ts`
+
+```typescript clean_text.ts
+await Deno.mkdir("cleaned", { recursive: true });
+```
+
+### How It Works
+
+- **Directory name**: Hardcoded to `"cleaned"`
+- **Location**: Relative to where you run the command
+- **Creation**: Automatic with `recursive: true` option
+- **Permissions**: Inherits from parent directory
+
+### Changing the Output Directory
+
+To use a different output directory, modify the script:
+
+<Tabs>
+  <Tab title="Custom Name">
+    ```typescript clean_text.ts
+    // Change "cleaned" to your preferred name
+    await Deno.mkdir("processed", { recursive: true });
+    const outputFilePath = `processed/${filePath}`;
+    ```
+  </Tab>
+  
+  <Tab title="Nested Path">
+    ```typescript clean_text.ts
+    // Use nested directories
+    await Deno.mkdir("output/cleaned", { recursive: true });
+    const outputFilePath = `output/cleaned/${filePath}`;
+    ```
+  </Tab>
+  
+  <Tab title="Absolute Path">
+    ```typescript clean_text.ts
+    // Use absolute path
+    const outputDir = "/home/user/documents/cleaned";
+    await Deno.mkdir(outputDir, { recursive: true });
+    const outputFilePath = `${outputDir}/${filePath}`;
+    ```
+  </Tab>
+  
+  <Tab title="Command Line Argument">
+    ```typescript clean_text.ts
+    // Accept output dir as second argument
+    const outputDir = Deno.args[1] || "cleaned";
+    await Deno.mkdir(outputDir, { recursive: true });
+    const outputFilePath = `${outputDir}/${filePath}`;
+    ```
+    
+    Usage:
+    ```bash
+    deno run -A clean_text.ts input.md output/
+    ```
+  </Tab>
+</Tabs>
+
+<Tip>
+Use `recursive: true` to create parent directories automatically. Without it, `Deno.mkdir()` will fail if the parent directory doesn't exist.
+</Tip>
+
+## File Naming
+
+**Source**: Line 51 of `clean_text.ts`
+
+```typescript clean_text.ts
+const outputFilePath = `cleaned/${filePath}`;
+```
+
+### Current Behavior
+
+CADS preserves the input filename in the output:
+
+| Input | Output |
+|-------|--------|
+| `01.md` | `cleaned/01.md` |
+| `chapter-1.txt` | `cleaned/chapter-1.txt` |
+| `docs/readme.md` | `cleaned/docs/readme.md` |
+
+<Warning>
+If the input path includes directories (e.g., `docs/readme.md`), CADS will try to create `cleaned/docs/readme.md`. This may fail if `cleaned/docs/` doesn't exist.
+</Warning>
+
+### Customizing File Names
+
+Modify the output path to change naming:
+
+<AccordionGroup>
+  <Accordion title="Add Prefix">
+    ```typescript clean_text.ts
+    const outputFilePath = `cleaned/cleaned-${filePath}`;
+    ```
+    
+    Result: `01.md` → `cleaned/cleaned-01.md`
+  </Accordion>
+  
+  <Accordion title="Add Suffix">
+    ```typescript clean_text.ts
+    const baseName = filePath.replace(/\.\w+$/, "");
+    const extension = filePath.match(/\.\w+$/)?.[0] || "";
+    const outputFilePath = `cleaned/${baseName}.cleaned${extension}`;
+    ```
+    
+    Result: `01.md` → `cleaned/01.cleaned.md`
+  </Accordion>
+  
+  <Accordion title="Change Extension">
+    ```typescript clean_text.ts
+    const baseName = filePath.replace(/\.\w+$/, "");
+    const outputFilePath = `cleaned/${baseName}.txt`;
+    ```
+    
+    Result: `01.md` → `cleaned/01.txt`
+  </Accordion>
+  
+  <Accordion title="Flatten Directory Structure">
+    ```typescript clean_text.ts
+    const fileName = filePath.split("/").pop();
+    const outputFilePath = `cleaned/${fileName}`;
+    ```
+    
+    Result: `docs/chapter/01.md` → `cleaned/01.md`
+  </Accordion>
+</AccordionGroup>
+
+## Handling Subdirectories
+
+If your input files are in subdirectories, you may need to preserve or flatten the structure:
+
+### Preserve Directory Structure
+
+```typescript clean_text.ts
+async function cleanText(filePath: string) {
+  // ... cleaning logic ...
+  
+  // Preserve subdirectories
+  const outputFilePath = `cleaned/${filePath}`;
+  
+  // Extract directory path from outputFilePath
+  const outputDir = outputFilePath.split("/").slice(0, -1).join("/");
+  
+  // Create nested directories if needed
+  await Deno.mkdir(outputDir, { recursive: true });
+  
+  // Write file
+  await Deno.writeTextFile(outputFilePath, cleanedContent);
+}
+```
+
+**Example**:
+```
+Input:  books/marquez/01.md
+Output: cleaned/books/marquez/01.md
+```
+
+### Flatten Structure
+
+```typescript clean_text.ts
+async function cleanText(filePath: string) {
+  // ... cleaning logic ...
+  
+  // Flatten by using only the filename
+  const fileName = filePath.split("/").pop();
+  const outputFilePath = `cleaned/${fileName}`;
+  
+  await Deno.mkdir("cleaned", { recursive: true });
+  await Deno.writeTextFile(outputFilePath, cleanedContent);
+}
+```
+
+**Example**:
+```
+Input:  books/marquez/01.md
+Output: cleaned/01.md
+```
+
+<Warning>
+Flattening may cause filename collisions if multiple input files have the same name in different directories.
+</Warning>
+
+## Output File Encoding
+
+CADS uses UTF-8 encoding for all output files via `Deno.writeTextFile()`:
+
+```typescript clean_text.ts
+await Deno.writeTextFile(outputFilePath, cleanedContent);
+```
+
+### Changing Encoding
+
+If you need a different encoding, use `Deno.writeFile()` with a `TextEncoder`:
+
+```typescript clean_text.ts
+// For UTF-16
+const encoder = new TextEncoder();
+const utf8Data = encoder.encode(cleanedContent);
+await Deno.writeFile(outputFilePath, utf8Data);
+```
+
+<Note>
+Most modern text processing expects UTF-8. Only change encoding if you have a specific requirement.
+</Note>
+
+## Output Verification
+
+After processing, verify the output:
+
+<Steps>
+  <Step title="Check file exists">
+    ```bash
+    ls -lh cleaned/
+    ```
+  </Step>
+  
+  <Step title="Compare file sizes">
+    ```bash
+    du -h 01.md cleaned/01.md
+    ```
+    
+    Cleaned files are typically 10-15% smaller.
+  </Step>
+  
+  <Step title="Preview cleaned content">
+    ```bash
+    head -n 50 cleaned/01.md
+    ```
+  </Step>
+  
+  <Step title="Diff against original">
+    ```bash
+    diff 01.md cleaned/01.md | less
+    ```
+    
+    Shows exactly what was removed.
+  </Step>
+</Steps>
+
+## Advanced Configuration
+
+### Configurable Output via Environment Variable
+
+```typescript clean_text.ts
+const OUTPUT_DIR = Deno.env.get("CADS_OUTPUT_DIR") || "cleaned";
+
+async function cleanText(filePath: string) {
+  // ... cleaning logic ...
+  
+  await Deno.mkdir(OUTPUT_DIR, { recursive: true });
+  const outputFilePath = `${OUTPUT_DIR}/${filePath}`;
+  await Deno.writeTextFile(outputFilePath, cleanedContent);
+}
+```
+
+**Usage**:
+```bash
+CADS_OUTPUT_DIR=processed deno run -A clean_text.ts 01.md
+```
+
+### Timestamped Output Directories
+
+```typescript clean_text.ts
+const timestamp = new Date().toISOString().replace(/:/g, "-").split(".")[0];
+const OUTPUT_DIR = `cleaned-${timestamp}`;
+
+await Deno.mkdir(OUTPUT_DIR, { recursive: true });
+```
+
+**Result**: Creates directories like `cleaned-2024-03-15T10-30-45/`
+
+<Tip>
+Timestamped directories are useful for comparing different cleaning runs or preserving multiple versions.
+</Tip>
+
+### Dry Run Mode
+
+Preview what would be cleaned without writing files:
+
+```typescript clean_text.ts
+const DRY_RUN = Deno.env.get("DRY_RUN") === "true";
+
+async function cleanText(filePath: string) {
+  // ... cleaning logic ...
+  
+  if (DRY_RUN) {
+    console.log(`[DRY RUN] Would write to: ${outputFilePath}`);
+    console.log(`[DRY RUN] Content length: ${cleanedContent.length} characters`);
+  } else {
+    await Deno.writeTextFile(outputFilePath, cleanedContent);
+  }
+}
+```
+
+**Usage**:
+```bash
+DRY_RUN=true deno run -A clean_text.ts 01.md
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Keep Originals" icon="folder-open">
+    Never overwrite input files. Always write to a separate directory.
+  </Card>
+  <Card title="Use Descriptive Names" icon="tag">
+    Name output directories clearly: `cleaned/`, `processed/`, `sanitized/`
+  </Card>
+  <Card title="Preserve Structure" icon="folder-tree">
+    Maintain subdirectory structure for large document sets
+  </Card>
+  <Card title="Version Output" icon="clock">
+    Use timestamps or version numbers for multiple processing runs
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Permission Denied">
+    **Error**: `PermissionDenied: Cannot create directory`
+    
+    **Solution**: Ensure you have write permissions:
+    ```bash
+    # Check permissions
+    ls -ld .
+    
+    # Fix if needed
+    chmod u+w .
+    ```
+  </Accordion>
+  
+  <Accordion title="Directory Already Exists">
+    **Error**: `Directory already exists`
+    
+    **Solution**: This isn't actually an error with `recursive: true`. If you see this, you're not using the recursive option:
+    ```typescript
+    // Wrong:
+    await Deno.mkdir("cleaned");
+    
+    // Right:
+    await Deno.mkdir("cleaned", { recursive: true });
+    ```
+  </Accordion>
+  
+  <Accordion title="File Not Created">
+    **Problem**: Script runs but no output file appears
+    
+    **Troubleshooting**:
+    1. Check for errors: `deno run -A clean_text.ts file.md 2>&1`
+    2. Verify permissions: `ls -la cleaned/`
+    3. Check working directory: `pwd`
+    4. Verify file path is relative: `echo $filePath`
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Batch Processing" icon="layer-group" href="/advanced/batch-processing">
+    Process multiple files with custom output organization
+  </Card>
+  <Card title="Troubleshooting" icon="wrench" href="/advanced/troubleshooting">
+    Common issues and solutions
+  </Card>
+</CardGroup>

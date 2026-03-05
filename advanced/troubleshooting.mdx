@@ -1,0 +1,515 @@
+---
+title: "Troubleshooting"
+description: "Common issues and solutions for CADS"
+---
+
+## Common Issues
+
+This guide covers the most common issues you might encounter while using CADS and how to resolve them.
+
+## Deno Runtime Issues
+
+<AccordionGroup>
+  <Accordion title="Error: Command 'deno' not found">
+    **Problem:** Deno is not installed or not in your system PATH.
+
+    **Solution:**
+    <Steps>
+      <Step title="Install Deno">
+        ```bash macOS/Linux
+        curl -fsSL https://deno.land/install.sh | sh
+        ```
+
+        ```bash Windows (PowerShell)
+        irm https://deno.land/install.ps1 | iex
+        ```
+      </Step>
+
+      <Step title="Add to PATH">
+        Add this to your `~/.bashrc`, `~/.zshrc`, or equivalent:
+        ```bash
+        export DENO_INSTALL="$HOME/.deno"
+        export PATH="$DENO_INSTALL/bin:$PATH"
+        ```
+      </Step>
+
+      <Step title="Verify Installation">
+        ```bash
+        deno --version
+        ```
+      </Step>
+    </Steps>
+  </Accordion>
+
+  <Accordion title="Error: Requires read access">
+    **Problem:** Missing file system permissions.
+
+    **Error message:**
+    ```
+    error: Requires read access to "source/file.md", run again with the --allow-read flag
+    ```
+
+    **Solution:**
+    Use the `-A` flag to grant all permissions, or specific flags:
+    ```bash
+    # Grant all permissions (recommended)
+    deno run -A clean_text.ts file.md
+
+    # Or grant specific permissions
+    deno run --allow-read --allow-write clean_text.ts file.md
+    ```
+
+    <Tip>
+    The `-A` flag is shorthand for `--allow-all` and grants read, write, network, and environment permissions.
+    </Tip>
+  </Accordion>
+
+  <Accordion title="Error: Module not found">
+    **Problem:** Script file not found or incorrect path.
+
+    **Solution:**
+    Verify you're in the correct directory and the script exists:
+    ```bash
+    # Check current directory
+    pwd
+
+    # List files
+    ls -la clean_text.ts
+
+    # Run with full path
+    deno run -A /full/path/to/clean_text.ts file.md
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## File Operation Errors
+
+<AccordionGroup>
+  <Accordion title="Error: No such file or directory">
+    **Problem:** Source file doesn't exist or path is incorrect.
+
+    **Error message:**
+    ```
+    Error cleaning text: NotFound: No such file or directory
+    ```
+
+    **Solution:**
+    <Steps>
+      <Step title="Verify File Exists">
+        ```bash
+        ls -la source/01.md
+        ```
+      </Step>
+
+      <Step title="Check File Path">
+        Use relative or absolute paths correctly:
+        ```bash
+        # If file is in current directory
+        deno run -A clean_text.ts 01.md
+
+        # If file is in subdirectory
+        deno run -A clean_text.ts source/01.md
+
+        # Use absolute path
+        deno run -A clean_text.ts /home/user/source/01.md
+        ```
+      </Step>
+
+      <Step title="Quote Paths with Spaces">
+        ```bash
+        deno run -A clean_text.ts "source/file with spaces.md"
+        ```
+      </Step>
+    </Steps>
+  </Accordion>
+
+  <Accordion title="Error: Permission denied">
+    **Problem:** Insufficient file system permissions.
+
+    **Solution:**
+    ```bash
+    # Check file permissions
+    ls -la source/01.md
+
+    # Make file readable
+    chmod +r source/01.md
+
+    # Make directory writable (for output)
+    chmod +w cleaned/
+    ```
+  </Accordion>
+
+  <Accordion title="Output directory not created">
+    **Problem:** The `cleaned` directory creation failed.
+
+    **Solution:**
+    CADS automatically creates the `cleaned` directory (line 48), but if it fails:
+    ```bash
+    # Create manually with proper permissions
+    mkdir -p cleaned
+    chmod 755 cleaned
+
+    # Check if directory was created
+    ls -ld cleaned
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Pattern Matching Issues
+
+<AccordionGroup>
+  <Accordion title="Text not being removed">
+    **Problem:** Patterns don't match the text in your files.
+
+    **Solution:**
+    <Steps>
+      <Step title="Verify Exact Text">
+        Check the exact text in your file:
+        ```bash
+        # View with line numbers
+        cat -n source/01.md | head -20
+
+        # Check for hidden characters
+        cat -A source/01.md | head -20
+        ```
+      </Step>
+
+      <Step title="Update Headers Array">
+        Ensure text matches exactly in `clean_text.ts:9-12`:
+        ```typescript
+        const headersAndFooters = [
+          "Exact Text From Your File",
+          "Another Exact Match"
+        ];
+        ```
+      </Step>
+
+      <Step title="Consider Case Sensitivity">
+        JavaScript regex is case-sensitive by default. For case-insensitive matching:
+        ```typescript
+        const middleRegex = new RegExp(
+          `(?<=\\S)\\s*${text}\\s*(?=\\S)`, 
+          "gi" // Added 'i' flag
+        );
+        ```
+      </Step>
+    </Steps>
+  </Accordion>
+
+  <Accordion title="Too much text being removed">
+    **Problem:** Patterns are too broad and matching unintended content.
+
+    **Solution:**
+    <Steps>
+      <Step title="Make Patterns More Specific">
+        Add context to your patterns:
+        ```typescript
+        // Instead of just "Chapter"
+        const chapterRegex = /^Chapter\s+\d+$/gm;
+        ```
+      </Step>
+
+      <Step title="Use Word Boundaries">
+        ```typescript
+        // Match whole words only
+        const wordRegex = new RegExp(`\\b${text}\\b`, "g");
+        ```
+      </Step>
+
+      <Step title="Test on Sample File">
+        Always test changes on a copy first:
+        ```bash
+        cp source/01.md test.md
+        deno run -A clean_text.ts test.md
+        diff test.md cleaned/test.md
+        ```
+      </Step>
+    </Steps>
+  </Accordion>
+
+  <Accordion title="Page numbers not detected">
+    **Problem:** Page number patterns don't match your format.
+
+    **Solution:**
+    Customize the page number regex patterns based on your format:
+
+    <CodeGroup>
+    ```typescript Standard Numbers (Default)
+    const pageNumberInParagraphRegex = new RegExp(
+      `\\s*\\n\\s*\\d+\\s*\\n`, 
+      "g"
+    );
+    ```
+
+    ```typescript With Page Prefix
+    // Matches "Page 42" or "p. 42"
+    const pageNumberRegex = new RegExp(
+      `\\s*\\n\\s*(Page|p\\.)\\s*\\d+\\s*\\n`,
+      "gi"
+    );
+    ```
+
+    ```typescript Range Format
+    // Matches "42-43" or "42/100"
+    const pageRangeRegex = new RegExp(
+      `\\s*\\n\\s*\\d+[-/]\\d+\\s*\\n`,
+      "g"
+    );
+    ```
+    </CodeGroup>
+  </Accordion>
+
+  <Accordion title="Special characters causing errors">
+    **Problem:** Pattern contains special regex characters.
+
+    **Error message:**
+    ```
+    SyntaxError: Invalid regular expression
+    ```
+
+    **Solution:**
+    Escape special characters in your text:
+    ```typescript
+    // Special regex characters: . * + ? ^ $ { } ( ) | [ ] \
+    
+    // Escape them with backslash
+    const headersAndFooters = [
+      "Title \\(with parentheses\\)",
+      "Price: \\$19\\.99"
+    ];
+
+    // Or use a helper function
+    function escapeRegex(str: string): string {
+      return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    const safeText = escapeRegex("Special chars: $100.");
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Output Issues
+
+<AccordionGroup>
+  <Accordion title="Empty output file">
+    **Problem:** Cleaned file is empty or nearly empty.
+
+    **Possible Causes:**
+    - Overly aggressive patterns removing too much
+    - Source file was already empty
+    - Encoding issues
+
+    **Solution:**
+    <Steps>
+      <Step title="Check Source File">
+        ```bash
+        wc -l source/01.md  # Count lines
+        cat source/01.md    # View content
+        ```
+      </Step>
+
+      <Step title="Review Patterns">
+        Temporarily comment out patterns to identify which is problematic:
+        ```typescript
+        // cleanedContent = cleanedContent.replace(romanNumeralRegex, "");
+        ```
+      </Step>
+
+      <Step title="Check File Encoding">
+        ```bash
+        file -i source/01.md
+        # Convert if needed
+        iconv -f ISO-8859-1 -t UTF-8 source/01.md > source/01_utf8.md
+        ```
+      </Step>
+    </Steps>
+  </Accordion>
+
+  <Accordion title="Unwanted formatting changes">
+    **Problem:** Line breaks or spacing changed unexpectedly.
+
+    **Solution:**
+    Review the replacement strings in regex operations:
+    ```typescript
+    // Preserves paragraph breaks
+    cleanedContent = cleanedContent.replace(pattern, "\n\n");
+
+    // Removes completely
+    cleanedContent = cleanedContent.replace(pattern, "");
+
+    // Replaces with single space
+    cleanedContent = cleanedContent.replace(pattern, " ");
+    ```
+  </Accordion>
+
+  <Accordion title="File encoding problems">
+    **Problem:** Special characters appear garbled in output.
+
+    **Solution:**
+    Ensure UTF-8 encoding:
+    ```typescript
+    // Specify encoding explicitly
+    const content = await Deno.readTextFile(filePath, { encoding: "utf-8" });
+    await Deno.writeTextFile(outputFilePath, cleanedContent, { encoding: "utf-8" });
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Batch Processing Issues
+
+<AccordionGroup>
+  <Accordion title="Script stops after first error">
+    **Problem:** Batch script exits when one file fails.
+
+    **Solution:**
+    Add error handling to continue processing:
+    ```bash
+    #!/bin/bash
+    for file in source/*.md; do
+      deno run -A clean_text.ts "$file" || echo "Failed: $file"
+    done
+    ```
+  </Accordion>
+
+  <Accordion title="Files processed out of order">
+    **Problem:** Numbered files processed in wrong sequence (1, 10, 2, 20...).
+
+    **Solution:**
+    Use zero-padded numbers or sort properly:
+    ```bash
+    # Rename files with zero padding
+    for i in {1..9}; do
+      mv source/$i.md source/0$i.md
+    done
+
+    # Or sort numerically in script
+    for file in $(ls source/*.md | sort -V); do
+      deno run -A clean_text.ts "$file"
+    done
+    ```
+  </Accordion>
+
+  <Accordion title="Running out of memory">
+    **Problem:** Large batch operations consume too much memory.
+
+    **Solution:**
+    Process files in smaller batches:
+    ```bash
+    # Process in groups of 5
+    for i in {1..20..5}; do
+      for j in $(seq $i $((i+4))); do
+        [ -f "source/$(printf %02d $j).md" ] && \
+          deno run -A clean_text.ts "source/$(printf %02d $j).md"
+      done
+      echo "Processed batch starting at $i, pausing..."
+      sleep 2
+    done
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Performance Issues
+
+<Warning>
+If processing is very slow, consider these optimizations:
+</Warning>
+
+### Slow Processing
+
+<Steps>
+  <Step title="Use Parallel Processing">
+    Process multiple files simultaneously:
+    ```bash
+    ls source/*.md | xargs -P 4 -I {} deno run -A clean_text.ts {}
+    ```
+  </Step>
+
+  <Step title="Optimize Regex Patterns">
+    - Avoid unnecessary global flags on single-match patterns
+    - Use non-capturing groups `(?:...)` when you don't need to extract
+    - Simplify complex lookahead/lookbehind assertions
+  </Step>
+
+  <Step title="Profile Performance">
+    Time individual operations:
+    ```typescript
+    console.time('Roman numerals');
+    cleanedContent = cleanedContent.replace(romanNumeralRegex, "");
+    console.timeEnd('Roman numerals');
+    ```
+  </Step>
+</Steps>
+
+## Debugging Tips
+
+<Steps>
+  <Step title="Enable Verbose Output">
+    Add console logs to track progress:
+    ```typescript
+    console.log(`Original length: ${content.length}`);
+    console.log(`After headers: ${cleanedContent.length}`);
+    console.log(`After page numbers: ${cleanedContent.length}`);
+    ```
+  </Step>
+
+  <Step title="Save Intermediate Results">
+    Write output at each cleaning step:
+    ```typescript
+    await Deno.writeTextFile("debug_step1.md", cleanedContent);
+    // ... more cleaning ...
+    await Deno.writeTextFile("debug_step2.md", cleanedContent);
+    ```
+  </Step>
+
+  <Step title="Test Patterns Individually">
+    Comment out all but one pattern to isolate issues:
+    ```typescript
+    // cleanedContent = cleanedContent.replace(romanNumeralRegex, "");
+    // headersAndFooters.forEach(...) // Commented out
+    cleanedContent = cleanedContent.replace(pageNumberAfterSentenceRegex, "\n\n");
+    ```
+  </Step>
+
+  <Step title="Use Visual Diff Tools">
+    Compare before and after:
+    ```bash
+    code -d source/01.md cleaned/01.md
+    # or
+    diff -u source/01.md cleaned/01.md | less
+    ```
+  </Step>
+</Steps>
+
+## Getting Help
+
+<CardGroup cols={2}>
+  <Card title="Check Examples" icon="book" href="/usage/examples">
+    Review working examples for common use cases
+  </Card>
+
+  <Card title="Custom Patterns" icon="code" href="/advanced/custom-patterns">
+    Learn how to write and test regex patterns
+  </Card>
+</CardGroup>
+
+<Tip>
+When reporting issues, include:
+- Exact command you ran
+- Complete error message
+- Deno version (`deno --version`)
+- A sample of the input file
+- Expected vs actual output
+</Tip>
+
+## Still Having Issues?
+
+If you're still experiencing problems:
+
+1. Check the [GitHub repository](https://github.com/btwiuse/cads) for known issues
+2. Search existing issues for similar problems
+3. Create a new issue with detailed information and examples
+4. Review the source code in `clean_text.ts` for deeper understanding
+
+<Note>
+Most issues can be resolved by carefully reviewing file paths, permissions, and ensuring patterns match your specific text format. When in doubt, test on a small sample file first.
+</Note>

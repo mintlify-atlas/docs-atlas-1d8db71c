@@ -1,0 +1,339 @@
+---
+title: "Custom Patterns"
+description: "Customize regex patterns to match your specific text cleaning needs"
+---
+
+## Overview
+
+CADS uses regular expressions to identify and remove headers, footers, page numbers, and other unwanted text. You can modify these patterns to match your specific document structure.
+
+## Understanding the Pattern System
+
+The cleaning patterns in CADS are defined in `clean_text.ts:9-12` and applied through various regex operations throughout the code.
+
+### Headers and Footers Array
+
+The `headersAndFooters` array contains text strings that appear repeatedly:
+
+```typescript clean_text.ts
+const headersAndFooters = [
+  "Cien años de soledad",
+  "Gabriel García Márquez"
+];
+```
+
+<Steps>
+  <Step title="Identify Repetitive Text">
+    Open a few of your source files and look for text that appears on multiple pages:
+    - Book titles
+    - Author names
+    - Publisher information
+    - Chapter titles that repeat
+    - Website URLs or watermarks
+  </Step>
+
+  <Step title="Add to the Array">
+    Modify the `headersAndFooters` array to include your patterns:
+
+    ```typescript
+    const headersAndFooters = [
+      "Your Book Title",
+      "Author Name",
+      "Chapter Name",
+      "www.example.com"
+    ];
+    ```
+  </Step>
+
+  <Step title="Test Your Changes">
+    Run CADS on a test file to verify the patterns work correctly:
+
+    ```bash
+    deno run -A clean_text.ts test/sample.md
+    ```
+  </Step>
+</Steps>
+
+## Regular Expression Patterns
+
+CADS uses several regex patterns for different cleaning operations. Here's how to customize each one:
+
+### 1. Roman Numeral Pattern
+
+Removes Roman numerals at the start of files (line 18):
+
+```typescript
+const romanNumeralRegex = new RegExp(`^\\s*[IVXLCDM]+\\s*\\n`, "m");
+```
+
+<Accordion title="Customization Examples">
+  **Remove Roman numerals anywhere in the document:**
+  ```typescript
+  const romanNumeralRegex = new RegExp(`\\n\\s*[IVXLCDM]+\\s*\\n`, "gm");
+  ```
+
+  **Also match lowercase Roman numerals:**
+  ```typescript
+  const romanNumeralRegex = new RegExp(`^\\s*[IVXLCDMivxlcdm]+\\s*\\n`, "m");
+  ```
+
+  **Match Roman numerals followed by a period:**
+  ```typescript
+  const romanNumeralRegex = new RegExp(`^\\s*[IVXLCDM]+\\.\\s*\\n`, "m");
+  ```
+</Accordion>
+
+### 2. Middle of Sentence Pattern
+
+Handles headers/footers in the middle of text (line 23):
+
+```typescript
+const middleRegex = new RegExp(`(?<=\\S)\\s*${text}\\s*(?=\\S)`, "g");
+```
+
+This uses lookbehind `(?<=\\S)` and lookahead `(?=\\S)` to detect non-whitespace characters before and after the pattern.
+
+<Warning>
+Be careful when modifying lookbehind and lookahead patterns. Incorrect patterns can cause unwanted deletions or fail to match text that should be removed.
+</Warning>
+
+### 3. Boundary Pattern
+
+Matches headers/footers after punctuation (line 27):
+
+```typescript
+const boundaryRegex = new RegExp(`(?<=\\p{P})\\s*${text}\\s*`, "gu");
+```
+
+<Accordion title="Unicode Property Escapes">
+  The `\\p{P}` pattern matches any Unicode punctuation character. You can use other Unicode categories:
+
+  - `\\p{L}` - Any letter
+  - `\\p{N}` - Any number
+  - `\\p{Z}` - Any separator (space, tab, etc.)
+  - `\\p{Pd}` - Dash punctuation
+  - `\\p{Po}` - Other punctuation
+
+  Note: The `u` flag is required for Unicode property escapes.
+</Accordion>
+
+### 4. Page Number Patterns
+
+CADS includes three patterns for page numbers:
+
+<CodeGroup>
+```typescript After Sentence (Line 36)
+// Matches page numbers after a sentence ending with a period
+const pageNumberAfterSentenceRegex = new RegExp(
+  `(?<=\\.)\\s*\\n\\s*\\d+\\s*\\n`, 
+  "g"
+);
+```
+
+```typescript In Paragraph (Line 40)
+// Matches page numbers in the middle of a paragraph
+const pageNumberInParagraphRegex = new RegExp(
+  `\\s*\\n\\s*\\d+\\s*\\n`, 
+  "g"
+);
+```
+
+```typescript At End (Line 44)
+// Matches page numbers at the end of the file
+const pageNumberAtEndRegex = new RegExp(
+  `\\s*\\n\\s*\\d+\\s*$`, 
+  "g"
+);
+```
+</CodeGroup>
+
+## Common Customizations
+
+### Match Multi-digit Page Numbers Only
+
+If single digits appear in your content, match only multi-digit page numbers:
+
+```typescript
+const pageNumberInParagraphRegex = new RegExp(
+  `\\s*\\n\\s*\\d{2,}\\s*\\n`, // {2,} means 2 or more digits
+  "g"
+);
+```
+
+### Match Page Numbers with Prefix
+
+For page numbers like "Page 42" or "p. 42":
+
+```typescript
+const pageWithPrefixRegex = new RegExp(
+  `\\s*\\n\\s*(Page|p\\.)\\s*\\d+\\s*\\n`,
+  "gi" // i flag for case-insensitive
+);
+cleanedContent = cleanedContent.replace(pageWithPrefixRegex, "\\n");
+```
+
+### Remove Date Stamps
+
+For recurring date patterns:
+
+```typescript
+const dateStampRegex = new RegExp(
+  `\\s*\\d{1,2}/\\d{1,2}/\\d{4}\\s*`, // Matches MM/DD/YYYY
+  "g"
+);
+cleanedContent = cleanedContent.replace(dateStampRegex, " ");
+```
+
+### Remove Copyright Notices
+
+```typescript
+const copyrightRegex = new RegExp(
+  `©\\s*\\d{4}.*?rights reserved`,
+  "gi"
+);
+cleanedContent = cleanedContent.replace(copyrightRegex, "");
+```
+
+## Advanced Pattern Techniques
+
+### Case-Insensitive Matching
+
+Add the `i` flag to ignore case:
+
+```typescript
+const caseInsensitiveRegex = new RegExp(`your pattern here`, "gi");
+```
+
+### Multi-line Patterns
+
+Use the `m` flag for patterns that span multiple lines:
+
+```typescript
+const multilineRegex = new RegExp(`^Chapter\\s+\\d+`, "gm");
+```
+
+### Capturing Groups
+
+Extract and reuse parts of the matched text:
+
+```typescript
+// Replace "Chapter 5" with "Ch. 5"
+const chapterRegex = /Chapter\s+(\d+)/g;
+cleanedContent = cleanedContent.replace(chapterRegex, "Ch. $1");
+```
+
+### Non-Greedy Matching
+
+Use `?` after quantifiers for minimal matching:
+
+```typescript
+// Match content between square brackets (non-greedy)
+const bracketRegex = /\[.*?\]/g;
+```
+
+## Testing Your Patterns
+
+Before processing all files, test your custom patterns:
+
+<Steps>
+  <Step title="Create a Test File">
+    Make a copy of one source file:
+    ```bash
+    cp source/01.md test_sample.md
+    ```
+  </Step>
+
+  <Step title="Modify the Script">
+    Update `clean_text.ts` with your custom patterns.
+  </Step>
+
+  <Step title="Run on Test File">
+    ```bash
+    deno run -A clean_text.ts test_sample.md
+    ```
+  </Step>
+
+  <Step title="Compare Results">
+    ```bash
+    diff test_sample.md cleaned/test_sample.md
+    ```
+    
+    Or use a visual diff tool:
+    ```bash
+    code -d test_sample.md cleaned/test_sample.md
+    ```
+  </Step>
+</Steps>
+
+<Tip>
+Use online regex testers like [regex101.com](https://regex101.com) to experiment with patterns before adding them to your code. Select "JavaScript" as the flavor for accurate testing.
+</Tip>
+
+## Pattern Library
+
+Here are some ready-to-use patterns for common scenarios:
+
+<AccordionGroup>
+  <Accordion title="Email Addresses">
+    ```typescript
+    const emailRegex = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g;
+    cleanedContent = cleanedContent.replace(emailRegex, "");
+    ```
+  </Accordion>
+
+  <Accordion title="URLs">
+    ```typescript
+    const urlRegex = /https?:\/\/[^\s]+/g;
+    cleanedContent = cleanedContent.replace(urlRegex, "");
+    ```
+  </Accordion>
+
+  <Accordion title="ISBN Numbers">
+    ```typescript
+    const isbnRegex = /ISBN[-:]?\s*(?:\d{9}[\dX]|\d{13})/gi;
+    cleanedContent = cleanedContent.replace(isbnRegex, "");
+    ```
+  </Accordion>
+
+  <Accordion title="Multiple Blank Lines">
+    ```typescript
+    const multipleBlankLines = /\n{3,}/g;
+    cleanedContent = cleanedContent.replace(multipleBlankLines, "\n\n");
+    ```
+  </Accordion>
+
+  <Accordion title="Trailing Whitespace">
+    ```typescript
+    const trailingWhitespace = /[ \t]+$/gm;
+    cleanedContent = cleanedContent.replace(trailingWhitespace, "");
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Creating Multiple Configurations
+
+For different types of documents, create separate cleaning scripts:
+
+```bash
+clean_text_books.ts    # For book chapters
+clean_text_articles.ts # For journal articles
+clean_text_web.ts      # For web-scraped content
+```
+
+Each can have its own custom patterns while sharing the core logic.
+
+<Warning>
+Always keep a backup of your original files before applying new patterns. Test thoroughly on a small sample before batch processing.
+</Warning>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Batch Processing" icon="layer-group" href="/advanced/batch-processing">
+    Apply your custom patterns to multiple files
+  </Card>
+  
+  <Card title="Troubleshooting" icon="screwdriver-wrench" href="/advanced/troubleshooting">
+    Debug pattern matching issues
+  </Card>
+</CardGroup>

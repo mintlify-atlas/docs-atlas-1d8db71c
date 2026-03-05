@@ -1,0 +1,361 @@
+---
+title: Text Processing
+description: How CADS cleans literary text files and removes artifacts
+---
+
+## Overview
+
+CADS applies a series of regular expression-based transformations to remove common artifacts from text files extracted from PDFs or scanned documents. This page explains each cleaning operation in detail.
+
+## Processing Pipeline
+
+The tool processes text in this order:
+
+1. Remove Roman numerals (chapter markers)
+2. Remove headers and footers
+3. Remove page numbers after sentences
+4. Remove page numbers in paragraphs
+5. Remove page numbers at end of file
+6. Write cleaned output
+
+## Cleaning Operations
+
+### 1. Roman Numeral Removal
+
+**Purpose**: Remove Roman numeral chapter markers that appear at the start of files.
+
+**Pattern**:
+```javascript
+const romanNumeralRegex = new RegExp(`^\\s*[IVXLCDM]+\\s*\\n`, "m");
+```
+
+**What it matches**:
+- One or more Roman numeral characters (I, V, X, L, C, D, M)
+- At the beginning of the file
+- Surrounded by optional whitespace
+- Followed by a newline
+
+**Example**:
+```text
+// Before
+V
+
+Aureliano Buendía y Remedios Moscote...
+
+// After  
+Aureliano Buendía y Remedios Moscote...
+```
+
+### 2. Header and Footer Removal
+
+CADS removes specific header and footer text that appears throughout the document. The text patterns are configurable:
+
+```javascript
+const headersAndFooters = [
+  "Cien años de soledad",
+  "Gabriel García Márquez"
+];
+```
+
+<Accordion title="Three-Pass Removal Strategy">
+Headers/footers are removed in three passes to handle different positions:
+
+#### Pass 1: Middle of Text
+```javascript
+const middleRegex = new RegExp(`(?<=\\S)\\s*${text}\\s*(?=\\S)`, "g");
+cleanedContent = cleanedContent.replace(middleRegex, "\n");
+```
+
+**Matches**: Header/footer surrounded by non-whitespace characters
+**Replacement**: Single newline
+**Example**:
+```text
+// Before
+palabras.Cien años de soledadMás palabras
+
+// After
+palabras.
+Más palabras
+```
+
+#### Pass 2: Sentence Boundaries  
+```javascript
+const boundaryRegex = new RegExp(`(?<=\\p{P})\\s*${text}\\s*`, "gu");
+cleanedContent = cleanedContent.replace(boundaryRegex, "\n");
+```
+
+**Matches**: Header/footer after punctuation
+**Replacement**: Single newline
+**Uses**: Unicode property escapes (`\\p{P}`) to match any punctuation
+**Example**:
+```text
+// Before
+end of sentence.Cien años de soledad
+
+// After  
+end of sentence.
+```
+
+#### Pass 3: End of File
+```javascript
+const endRegex = new RegExp(`\\s*${text}\\s*$`, "g");
+cleanedContent = cleanedContent.replace(endRegex, "");
+```
+
+**Matches**: Header/footer at the very end
+**Replacement**: Empty string (complete removal)
+</Accordion>
+
+### 3. Page Number Removal
+
+<Note>
+CADS handles page numbers differently depending on their position in the text.
+</Note>
+
+#### After Complete Sentences
+
+**Pattern**:
+```javascript
+const pageNumberAfterSentenceRegex = new RegExp(`(?<=\\.)\\s*\\n\\s*\\d+\\s*\\n`, "g");
+```
+
+**What it matches**:
+- Looks for a period (`.`)
+- Followed by optional whitespace
+- Then a newline
+- Then digits (page number)
+- Then another newline
+
+**Replacement**: Two newlines (paragraph break)
+
+**Example**:
+```text
+// Before
+This is the end of a sentence.
+57
+This is the start of a new paragraph.
+
+// After
+This is the end of a sentence.
+
+This is the start of a new paragraph.
+```
+
+#### In the Middle of Paragraphs
+
+**Pattern**:
+```javascript
+const pageNumberInParagraphRegex = new RegExp(`\\s*\\n\\s*\\d+\\s*\\n`, "g");
+```
+
+**What it matches**:
+- Newline with optional whitespace
+- Digits (page number)
+- Another newline with optional whitespace
+
+**Replacement**: Single newline
+
+**Example**:
+```text
+// Before
+continued from previous page
+124
+and continuing on this page
+
+// After
+continued from previous page
+and continuing on this page
+```
+
+#### At End of File
+
+**Pattern**:
+```javascript
+const pageNumberAtEndRegex = new RegExp(`\\s*\\n\\s*\\d+\\s*$`, "g");
+```
+
+**What it matches**:
+- Newline with optional whitespace  
+- Digits
+- End of file (`$`)
+
+**Replacement**: Empty string (complete removal)
+
+**Example**:
+```text
+// Before  
+This is the last sentence of the chapter.
+
+142
+
+// After
+This is the last sentence of the chapter.
+```
+
+## Regular Expression Flags
+
+<Tabs>
+  <Tab title="g (global)">
+    Finds all matches in the text, not just the first one.
+    
+    ```javascript
+    // Used in most patterns
+    new RegExp(pattern, "g")
+    ```
+  </Tab>
+  
+  <Tab title="m (multiline)">
+    Makes `^` and `$` match the start/end of lines, not just the entire string.
+    
+    ```javascript
+    // Used for Roman numeral removal
+    new RegExp(`^\\s*[IVXLCDM]+\\s*\\n`, "m")
+    ```
+  </Tab>
+  
+  <Tab title="u (unicode)">
+    Enables Unicode property escapes like `\\p{P}` for punctuation.
+    
+    ```javascript
+    // Used for boundary detection
+    new RegExp(`(?<=\\p{P})\\s*${text}\\s*`, "gu")
+    ```
+  </Tab>
+</Tabs>
+
+## Character Classes
+
+| Pattern | Description | Example Matches |
+|---------|-------------|----------------|
+| `\\s` | Whitespace | Space, tab, newline |
+| `\\S` | Non-whitespace | Any visible character |
+| `\\d` | Digit | 0-9 |
+| `[IVXLCDM]` | Roman numerals | I, V, X, L, C, D, M |
+| `\\p{P}` | Unicode punctuation | `.`, `!`, `?`, `;`, etc. |
+
+## Lookarounds
+
+CADS uses lookbehind and lookahead assertions to match patterns without consuming characters:
+
+<CardGroup cols={2}>
+  <Card title="Positive Lookbehind" icon="arrow-left">
+    `(?<=pattern)` - Match if preceded by pattern
+    
+    ```javascript
+    // Match page number after period
+    (?<=\\.)
+    ```
+  </Card>
+  
+  <Card title="Positive Lookahead" icon="arrow-right">
+    `(?=pattern)` - Match if followed by pattern
+    
+    ```javascript
+    // Match header before text
+    (?=\\S)
+    ```
+  </Card>
+</CardGroup>
+
+## Whitespace Handling
+
+The tool preserves meaningful whitespace while removing artifacts:
+
+- **Paragraph breaks**: Two newlines (`\n\n`) are preserved
+- **Line breaks**: Single newlines within paragraphs are kept
+- **Trailing spaces**: Removed during header/footer cleanup
+- **Leading spaces**: Removed with page numbers
+
+<Accordion title="Why This Matters">
+Proper whitespace handling ensures:
+
+1. Paragraphs remain distinct
+2. Text flows naturally
+3. No extra blank lines
+4. No orphaned spaces
+</Accordion>
+
+## Customization
+
+### Changing Headers/Footers
+
+Edit the `headersAndFooters` array in `clean_text.ts`:
+
+```javascript
+const headersAndFooters = [
+  "Your Book Title",
+  "Author Name",
+  "Chapter Title"
+];
+```
+
+<Warning>
+Header/footer text is used in regex patterns. Escape special regex characters:
+
+```javascript
+const headersAndFooters = [
+  "Price: \\$9\\.99",  // Escape $ and .
+  "Chapter \\(1\\)",   // Escape parentheses
+];
+```
+</Warning>
+
+### Modifying Page Number Patterns
+
+To handle different page number formats, modify the regex patterns:
+
+```javascript
+// For page numbers like "- 57 -"
+const pageNumberRegex = new RegExp(`-\\s*\\d+\\s*-`, "g");
+
+// For page numbers with "Page" prefix
+const pageNumberRegex = new RegExp(`Page\\s+\\d+`, "gi");
+
+// For Roman numeral page numbers
+const pageNumberRegex = new RegExp(`[ivxlcdm]+`, "gi");
+```
+
+## Performance Characteristics
+
+<CardGroup cols={3}>
+  <Card title="Time Complexity" icon="clock">
+    O(n) where n is file size
+    
+    Each regex pass scans the text once
+  </Card>
+  
+  <Card title="Space Complexity" icon="memory">
+    O(n) for storing content
+    
+    Original + cleaned versions in memory
+  </Card>
+  
+  <Card title="Regex Performance" icon="gauge-high">
+    Fast backtracking
+    
+    Patterns are optimized to avoid catastrophic backtracking
+  </Card>
+</CardGroup>
+
+## Limitations
+
+<Warning>
+CADS has some limitations to be aware of:
+
+1. **Hardcoded patterns**: Headers/footers must be specified in code
+2. **No configuration file**: Cannot change settings without editing source
+3. **Single-language**: Optimized for Spanish text from "Cien años de soledad"
+4. **No OCR correction**: Assumes clean text input
+5. **No context awareness**: Removes patterns mechanically without understanding context
+</Warning>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Command Reference" icon="terminal" href="/usage/command-reference">
+    Learn the command-line interface
+  </Card>
+  <Card title="Examples" icon="book-open" href="/usage/examples">
+    See real-world usage examples
+  </Card>
+</CardGroup>

@@ -1,0 +1,220 @@
+---
+title: "Batch Processing"
+description: "Process multiple files at once with CADS"
+---
+
+## Overview
+
+CADS can process multiple files efficiently using shell scripts. This is particularly useful when you have a collection of text files that need the same cleaning operations applied.
+
+## Processing Multiple Files
+
+<Steps>
+  <Step title="Organize Your Files">
+    Ensure all your source files are in a single directory. For example:
+    
+    ```bash
+    source/
+    ├── 01.md
+    ├── 02.md
+    ├── 03.md
+    └── ...
+    ```
+  </Step>
+
+  <Step title="Create a Batch Script">
+    Create a shell script to loop through all files and process them:
+
+    <CodeGroup>
+    ```bash Simple Loop
+    #!/bin/bash
+    for file in source/*.md; do
+      deno run -A clean_text.ts "$file"
+    done
+    ```
+
+    ```bash With Progress Indicators
+    #!/bin/bash
+    total=$(ls source/*.md | wc -l)
+    count=0
+    
+    for file in source/*.md; do
+      count=$((count + 1))
+      echo "Processing file $count of $total: $file"
+      deno run -A clean_text.ts "$file"
+    done
+    
+    echo "Batch processing complete!"
+    ```
+
+    ```bash Parallel Processing
+    #!/bin/bash
+    # Process up to 4 files simultaneously
+    ls source/*.md | xargs -P 4 -I {} deno run -A clean_text.ts {}
+    ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Make the Script Executable">
+    ```bash
+    chmod +x batch_clean.sh
+    ```
+  </Step>
+
+  <Step title="Run the Script">
+    ```bash
+    ./batch_clean.sh
+    ```
+  </Step>
+</Steps>
+
+## Processing Numbered Files
+
+If you have sequentially numbered files (like chapters 01-20), you can use a numeric range:
+
+```bash
+#!/bin/bash
+for i in {01..20}; do
+  if [ -f "source/${i}.md" ]; then
+    echo "Processing chapter ${i}"
+    deno run -A clean_text.ts "source/${i}.md"
+  else
+    echo "Warning: source/${i}.md not found, skipping"
+  fi
+done
+```
+
+## Advanced Batch Techniques
+
+### Error Handling
+
+Add error handling to your batch script to continue processing even if one file fails:
+
+```bash
+#!/bin/bash
+failed_files=()
+
+for file in source/*.md; do
+  if deno run -A clean_text.ts "$file"; then
+    echo "✓ Successfully processed: $file"
+  else
+    echo "✗ Failed to process: $file"
+    failed_files+=("$file")
+  fi
+done
+
+if [ ${#failed_files[@]} -gt 0 ]; then
+  echo "\nFailed files:"
+  printf '%s\n' "${failed_files[@]}"
+fi
+```
+
+### Filtering Files by Pattern
+
+Process only files matching specific patterns:
+
+```bash
+# Process only files starting with "chapter"
+for file in source/chapter*.md; do
+  deno run -A clean_text.ts "$file"
+done
+
+# Process files excluding backup files
+for file in source/*.md; do
+  if [[ ! "$file" =~ \.backup\. ]]; then
+    deno run -A clean_text.ts "$file"
+  fi
+done
+```
+
+### Processing with Different Configurations
+
+If you need to process different sets of files with different cleaning rules:
+
+```bash
+#!/bin/bash
+
+# Process Part 1 chapters (01-10)
+for i in {01..10}; do
+  deno run -A clean_text_part1.ts "source/${i}.md"
+done
+
+# Process Part 2 chapters (11-20)
+for i in {11..20}; do
+  deno run -A clean_text_part2.ts "source/${i}.md"
+done
+```
+
+<Warning>
+When using parallel processing with `xargs -P`, be careful with the number of concurrent processes. Too many simultaneous processes can overwhelm your system. Start with 4-8 processes and adjust based on your system's performance.
+</Warning>
+
+## Batch Processing with Deno
+
+You can also create a TypeScript batch processor:
+
+```typescript batch_processor.ts
+#!/usr/bin/env -S deno run -A
+
+import { cleanText } from "./clean_text.ts";
+
+const sourceDir = "source";
+const files: string[] = [];
+
+// Read all .md files from source directory
+for await (const entry of Deno.readDir(sourceDir)) {
+  if (entry.isFile && entry.name.endsWith(".md")) {
+    files.push(`${sourceDir}/${entry.name}`);
+  }
+}
+
+// Sort files numerically
+files.sort((a, b) => {
+  const numA = parseInt(a.match(/\d+/)?.[0] || "0");
+  const numB = parseInt(b.match(/\d+/)?.[0] || "0");
+  return numA - numB;
+});
+
+console.log(`Processing ${files.length} files...\n`);
+
+// Process each file
+for (const file of files) {
+  console.log(`Processing: ${file}`);
+  await cleanText(file);
+}
+
+console.log(`\n✓ All ${files.length} files processed successfully!`);
+```
+
+<Tip>
+For large batches of files, consider using the TypeScript approach as it provides better error handling and progress tracking capabilities.
+</Tip>
+
+## Verifying Results
+
+After batch processing, verify the results:
+
+```bash
+# Check that all files were processed
+ls -1 source/*.md | wc -l
+ls -1 cleaned/*.md | wc -l
+
+# Compare file sizes
+du -sh source/
+du -sh cleaned/
+
+# Quick content check
+head -n 20 cleaned/01.md
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Custom Patterns" icon="wrench" href="/advanced/custom-patterns">
+    Learn how to modify regex patterns for your specific needs
+  </Card>
+  
+  <Card title="Troubleshooting" icon="triangle-exclamation" href="/advanced/troubleshooting">
+    Common issues and how to solve them
+  </Card>
+</CardGroup>

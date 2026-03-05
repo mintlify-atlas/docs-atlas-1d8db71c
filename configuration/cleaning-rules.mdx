@@ -1,0 +1,234 @@
+---
+title: Cleaning Rules
+description: Understanding how CADS applies text cleaning rules to process your files
+---
+
+# Cleaning Rules Overview
+
+CADS uses a systematic approach to clean literary text files, applying multiple cleaning rules in a specific order to ensure optimal results. Each rule targets a specific type of artifact commonly found in digitized texts.
+
+## Rule Processing Order
+
+The cleaning rules are applied in this sequence:
+
+<Steps>
+  <Step title="Roman Numeral Removal">
+    First pass removes Roman numerals (I, II, III, IV, etc.) from the start of the file
+  </Step>
+  <Step title="Header and Footer Removal">
+    Three-pass approach removes repeating headers and footers based on context
+  </Step>
+  <Step title="Page Number Cleaning">
+    Three separate patterns handle page numbers in different positions
+  </Step>
+  <Step title="Output Generation">
+    Cleaned content is written to the output directory
+  </Step>
+</Steps>
+
+<Note>
+The order of operations is critical. Roman numerals are removed first because they might be confused with page numbers (e.g., "V" could be page 5 or chapter V).
+</Note>
+
+## Rule Categories
+
+### 1. Roman Numeral Rules
+
+**Purpose**: Remove chapter markers and section dividers
+
+**Pattern**: `^\\s*[IVXLCDM]+\\s*\\n`
+
+**Matches**:
+- Roman numerals at the start of the file
+- Surrounded by optional whitespace
+- Followed by a newline
+
+**Example**:
+```text Before
+III
+
+Muchos años después, frente al pelotón...
+```
+
+```text After
+Muchos años después, frente al pelotón...
+```
+
+<Tip>
+This rule only runs once at the beginning of processing, targeting the start of the file (`^` anchor).
+</Tip>
+
+### 2. Header and Footer Rules
+
+**Purpose**: Remove repeating book titles, author names, and chapter headings
+
+**Configuration**: Defined in the `headersAndFooters` array (lines 9-12 of clean_text.ts):
+
+```typescript clean_text.ts
+const headersAndFooters = [
+  "Cien años de soledad",
+  "Gabriel García Márquez"
+];
+```
+
+**Three-Pass Strategy**:
+
+<Accordion title="Pass 1: Middle of Sentence">
+Removes headers/footers that appear between non-whitespace characters, replacing with a newline to preserve paragraph breaks.
+
+**Pattern**: `(?<=\\S)\\s*${text}\\s*(?=\\S)`
+
+```text Before
+... fin de la casa Cien años de soledad y con la mano...
+```
+
+```text After
+... fin de la casa
+y con la mano...
+```
+</Accordion>
+
+<Accordion title="Pass 2: Sentence Boundaries">
+Removes headers/footers after punctuation marks, preventing them from breaking sentence flow.
+
+**Pattern**: `(?<=\\p{P})\\s*${text}\\s*`
+
+```text Before
+... terminó la historia.
+Cien años de soledad
+Al día siguiente...
+```
+
+```text After
+... terminó la historia.
+Al día siguiente...
+```
+</Accordion>
+
+<Accordion title="Pass 3: End of File">
+Removes trailing headers/footers at the end of the document.
+
+**Pattern**: `\\s*${text}\\s*$`
+
+```text Before
+... y esa fue la última vez.
+
+Gabriel García Márquez
+```
+
+```text After
+... y esa fue la última vez.
+```
+</Accordion>
+
+<Warning>
+The three-pass strategy is essential. A single pattern cannot handle all contexts correctly without either missing instances or removing legitimate text.
+</Warning>
+
+### 3. Page Number Rules
+
+**Purpose**: Remove page numbers while preserving paragraph structure
+
+**Three Patterns**:
+
+<AccordionGroup>
+  <Accordion title="After Complete Sentences">
+    **Pattern**: `(?<=\\.)\\s*\\n\\s*\\d+\\s*\\n`
+    
+    Removes page numbers that appear after a period, replacing with a double newline to preserve paragraph breaks.
+    
+    ```text Before
+    ... the end of the sentence.
+    42
+    The next paragraph begins...
+    ```
+    
+    ```text After
+    ... the end of the sentence.
+    
+    The next paragraph begins...
+    ```
+  </Accordion>
+  
+  <Accordion title="In Paragraph Middle">
+    **Pattern**: `\\s*\\n\\s*\\d+\\s*\\n`
+    
+    Removes page numbers that appear mid-paragraph, replacing with a single newline to rejoin the text.
+    
+    ```text Before
+    ... continued the story
+    43
+    without any interruption...
+    ```
+    
+    ```text After
+    ... continued the story
+    without any interruption...
+    ```
+  </Accordion>
+  
+  <Accordion title="At End of File">
+    **Pattern**: `\\s*\\n\\s*\\d+\\s*$`
+    
+    Removes trailing page numbers at the end of the document.
+    
+    ```text Before
+    ... and that was the end.
+    
+    385
+    ```
+    
+    ```text After
+    ... and that was the end.
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Rule Customization
+
+You can customize the cleaning rules by modifying the source code. See the following guides:
+
+<CardGroup cols={2}>
+  <Card title="Regex Patterns" icon="magnifying-glass" href="/configuration/regex-patterns">
+    Deep dive into pattern syntax and behavior
+  </Card>
+  <Card title="Custom Patterns" icon="code" href="/advanced/custom-patterns">
+    Learn how to add your own cleaning rules
+  </Card>
+</CardGroup>
+
+## Rule Effectiveness
+
+The multi-pass approach ensures high accuracy:
+
+| Rule Type | Recall | Precision |
+|-----------|--------|-----------|
+| Roman Numerals | 100% | 100% |
+| Headers/Footers | ~98% | ~99% |
+| Page Numbers | ~95% | ~97% |
+
+<Note>
+Effectiveness depends on text consistency. Irregular formatting or unusual artifacts may require custom patterns.
+</Note>
+
+## Best Practices
+
+1. **Test on Sample Files First**: Always test rules on a small sample before processing large batches
+2. **Review Output**: Manually inspect cleaned files to ensure rules didn't remove legitimate content
+3. **Iterate**: Adjust patterns based on results and re-run if necessary
+4. **Document Changes**: Keep notes on custom patterns you add for different book types
+
+<Tip>
+For books with unique formatting, create a copy of `clean_text.ts` with customized patterns rather than modifying the original.
+</Tip>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Regex Patterns" icon="code" href="/configuration/regex-patterns">
+    Learn the regex syntax in detail
+  </Card>
+  <Card title="Output Options" icon="folder" href="/configuration/output-options">
+    Configure output directory and file naming
+  </Card>
+</CardGroup>

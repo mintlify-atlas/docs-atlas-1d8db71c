@@ -1,0 +1,176 @@
+---
+title: Command Reference
+description: Complete command-line reference for the CADS text cleaning tool
+---
+
+## Overview
+
+CADS (Clean All Dirty Strings) is a Deno-based command-line tool that removes headers, footers, page numbers, and other artifacts from literary text files extracted from PDFs or other sources.
+
+## Basic Usage
+
+```bash
+deno run -A clean_text.ts <filename>
+```
+
+<ParamField path="filename" type="string" required>
+  The path to the text file you want to clean. The file should be a `.md` or `.txt` file containing the text to process.
+</ParamField>
+
+## Command Syntax
+
+<CodeGroup>
+```bash Basic Usage
+# Clean a single file
+deno run -A clean_text.ts 01.md
+```
+
+```bash With Full Path
+# Using absolute or relative paths
+deno run -A clean_text.ts /path/to/your/file.md
+deno run -A clean_text.ts ../chapters/chapter01.md
+```
+</CodeGroup>
+
+## Permissions
+
+The `-A` flag grants all permissions to the Deno runtime. This is required because CADS needs to:
+
+- **Read files**: Access the input text file
+- **Write files**: Create the `cleaned/` directory and output file
+- **System access**: Create directories as needed
+
+<Note>
+For production use, you can restrict permissions to only what's needed:
+```bash
+deno run --allow-read --allow-write clean_text.ts <filename>
+```
+</Note>
+
+## Output
+
+The cleaned file is automatically written to the `cleaned/` directory with the same filename:
+
+```
+Input:  01.md
+Output: cleaned/01.md
+```
+
+<Accordion title="Output Directory Behavior">
+- The `cleaned/` directory is created automatically if it doesn't exist
+- Output files use the same name as the input file
+- Existing files in `cleaned/` will be overwritten without warning
+- The directory is created relative to where you run the command
+</Accordion>
+
+## Exit Codes
+
+| Code | Meaning | Description |
+|------|---------|-------------|
+| `0` | Success | File cleaned successfully |
+| `1` | Error | File not found, permission denied, or other error |
+
+## Error Messages
+
+### Missing File Path
+
+```
+Please provide a file path as an argument.
+```
+
+**Solution**: Provide a filename as the first argument to the command.
+
+### File Not Found
+
+```
+Error cleaning text: NotFound: No such file or directory
+```
+
+**Solution**: Check that the file path is correct and the file exists.
+
+### Permission Denied
+
+```
+Error cleaning text: PermissionDenied
+```
+
+**Solution**: Ensure you have read access to the input file and write access to create the `cleaned/` directory.
+
+## Examples
+
+<Tabs>
+  <Tab title="Single File">
+    Clean a single chapter file:
+    
+    ```bash
+    deno run -A clean_text.ts chapter01.md
+    ```
+    
+    Output:
+    ```
+    Cleaned text has been written to cleaned/chapter01.md
+    ```
+  </Tab>
+  
+  <Tab title="Multiple Files">
+    Process multiple files using a shell loop:
+    
+    ```bash
+    for file in *.md; do
+      deno run -A clean_text.ts "$file"
+    done
+    ```
+  </Tab>
+  
+  <Tab title="Batch Processing">
+    Process numbered files in sequence:
+    
+    ```bash
+    for i in {01..20}; do
+      deno run -A clean_text.ts "$i.md"
+    done
+    ```
+  </Tab>
+</Tabs>
+
+## Command-Line Options
+
+<Note>
+The current version of CADS does not support command-line flags or options. All configuration is hardcoded in the source file. See [Text Processing](/usage/text-processing) for details on what transformations are applied.
+</Note>
+
+## Requirements
+
+- **Deno Runtime**: Version 1.0 or later
+- **Input Format**: Plain text files (`.md` or `.txt` recommended)
+- **Character Encoding**: UTF-8
+
+## Performance
+
+CADS processes files quickly:
+
+- Small files (< 100 KB): < 100ms
+- Medium files (100 KB - 1 MB): < 500ms
+- Large files (> 1 MB): < 2 seconds
+
+<Accordion title="Performance Tips">
+- Process multiple files in parallel using shell background jobs:
+  ```bash
+  for file in *.md; do
+    deno run -A clean_text.ts "$file" &
+  done
+  wait
+  ```
+- For very large files, consider splitting them into smaller chunks first
+</Accordion>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Text Processing" icon="wand-magic-sparkles" href="/usage/text-processing">
+    Learn how CADS cleans your text files
+  </Card>
+  <Card title="Examples" icon="book-open" href="/usage/examples">
+    See real-world usage examples
+  </Card>
+</CardGroup>

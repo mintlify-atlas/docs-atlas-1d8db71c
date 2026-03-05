@@ -1,0 +1,118 @@
+---
+title: Installation
+description: Get started with CADS by installing Deno and setting up the tool
+---
+
+CADS is a Deno CLI tool that helps you clean literary text files by removing headers, footers, and page numbers. This guide will walk you through the installation process.
+
+## Prerequisites
+
+CADS requires Deno, a modern JavaScript/TypeScript runtime. Follow the steps below to install Deno and get CADS running on your system.
+
+<Steps>
+  <Step title="Install Deno">
+    Choose the installation method for your operating system:
+
+    <CodeGroup>
+      ```bash macOS/Linux
+      curl -fsSL https://deno.land/x/install/install.sh | sh
+      ```
+
+      ```bash Windows (PowerShell)
+      irm https://deno.land/install.ps1 | iex
+      ```
+
+      ```bash Homebrew (macOS)
+      brew install deno
+      ```
+    </CodeGroup>
+
+    <Note>
+      After installation, you may need to add Deno to your PATH. The installer will provide instructions specific to your system.
+    </Note>
+  </Step>
+
+  <Step title="Verify Deno Installation">
+    Confirm that Deno is installed correctly:
+
+    ```bash
+    deno --version
+    ```
+
+    You should see output similar to:
+    ```
+    deno 1.40.0 (release, x86_64-apple-darwin)
+    v8 12.1.285.6
+    typescript 5.3.3
+    ```
+  </Step>
+
+  <Step title="Get CADS">
+    Download or clone the CADS source code to your local machine:
+
+    ```bash
+    # Example: Clone from your repository
+    git clone <your-repository-url>
+    cd cads
+    ```
+
+    The main script is `clean_text.ts`, which can be run directly with Deno.
+  </Step>
+
+  <Step title="Test CADS">
+    Verify CADS is working by running it with the help flag:
+
+    ```bash
+    deno run -A clean_text.ts
+    ```
+
+    You should see:
+    ```
+    Please provide a file path as an argument.
+    ```
+
+    This confirms CADS is ready to use!
+  </Step>
+</Steps>
+
+## System Requirements
+
+- **Deno**: Version 1.30 or higher
+- **Operating System**: macOS, Linux, or Windows
+- **Permissions**: CADS requires file system read/write permissions (handled by the `-A` flag)
+
+## Next Steps
+
+<Card title="Quick Start" icon="rocket" href="/quickstart">
+  Learn how to process your first text file with CADS
+</Card>
+
+## Troubleshooting
+
+### Permission Errors
+
+If you encounter permission errors when running CADS, ensure you're using the `-A` flag to grant all permissions:
+
+```bash
+deno run -A clean_text.ts your-file.txt
+```
+
+Alternatively, you can grant specific permissions:
+
+```bash
+deno run --allow-read --allow-write clean_text.ts your-file.txt
+```
+
+### Deno Not Found
+
+If the `deno` command is not recognized, you may need to add it to your PATH. Check the output from the Deno installer for specific instructions for your system.
+
+<Note>
+  On macOS/Linux, you typically need to add this line to your `~/.bashrc`, `~/.zshrc`, or equivalent:
+  
+  ```bash
+  export PATH="$HOME/.deno/bin:$PATH"
+  ```
+  
+  Then restart your terminal or run `source ~/.bashrc` (or `~/.zshrc`).
+</Note>
