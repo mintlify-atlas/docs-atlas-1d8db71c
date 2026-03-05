@@ -72,19 +72,7 @@ To use a different output directory, modify the script:
     ```
   </Tab>
   
-  <Tab title="Command Line Argument">
-    ```typescript clean_text.ts
-    // Accept output dir as second argument
-    const outputDir = Deno.args[1] || "cleaned";
-    await Deno.mkdir(outputDir, { recursive: true });
-    const outputFilePath = `${outputDir}/${filePath}`;
-    ```
-    
-    Usage:
-    ```bash
-    deno run -A clean_text.ts input.md output/
-    ```
-  </Tab>
+
 </Tabs>
 
 <Tip>
@@ -267,65 +255,13 @@ After processing, verify the output:
   </Step>
 </Steps>
 
-## Advanced Configuration
+## Modifying Output Behavior
 
-### Configurable Output via Environment Variable
+<Note>
+The current version of CADS has the output directory hardcoded to `cleaned/`. To change this behavior, you need to modify the source code in `clean_text.ts`.
+</Note>
 
-```typescript clean_text.ts
-const OUTPUT_DIR = Deno.env.get("CADS_OUTPUT_DIR") || "cleaned";
-
-async function cleanText(filePath: string) {
-  // ... cleaning logic ...
-  
-  await Deno.mkdir(OUTPUT_DIR, { recursive: true });
-  const outputFilePath = `${OUTPUT_DIR}/${filePath}`;
-  await Deno.writeTextFile(outputFilePath, cleanedContent);
-}
-```
-
-**Usage**:
-```bash
-CADS_OUTPUT_DIR=processed deno run -A clean_text.ts 01.md
-```
-
-### Timestamped Output Directories
-
-```typescript clean_text.ts
-const timestamp = new Date().toISOString().replace(/:/g, "-").split(".")[0];
-const OUTPUT_DIR = `cleaned-${timestamp}`;
-
-await Deno.mkdir(OUTPUT_DIR, { recursive: true });
-```
-
-**Result**: Creates directories like `cleaned-2024-03-15T10-30-45/`
-
-<Tip>
-Timestamped directories are useful for comparing different cleaning runs or preserving multiple versions.
-</Tip>
-
-### Dry Run Mode
-
-Preview what would be cleaned without writing files:
-
-```typescript clean_text.ts
-const DRY_RUN = Deno.env.get("DRY_RUN") === "true";
-
-async function cleanText(filePath: string) {
-  // ... cleaning logic ...
-  
-  if (DRY_RUN) {
-    console.log(`[DRY RUN] Would write to: ${outputFilePath}`);
-    console.log(`[DRY RUN] Content length: ${cleanedContent.length} characters`);
-  } else {
-    await Deno.writeTextFile(outputFilePath, cleanedContent);
-  }
-}
-```
-
-**Usage**:
-```bash
-DRY_RUN=true deno run -A clean_text.ts 01.md
-```
+The examples above in the "Changing the Output Directory" section show how you can edit the source file to customize where files are written. These modifications require editing `clean_text.ts` directly.
 
 ## Best Practices
 
@@ -339,8 +275,8 @@ DRY_RUN=true deno run -A clean_text.ts 01.md
   <Card title="Preserve Structure" icon="folder-tree">
     Maintain subdirectory structure for large document sets
   </Card>
-  <Card title="Version Output" icon="clock">
-    Use timestamps or version numbers for multiple processing runs
+  <Card title="Backup Originals" icon="clock">
+    Keep backups before running batch operations on valuable files
   </Card>
 </CardGroup>
 
