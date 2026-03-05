@@ -1,0 +1,60 @@
+{
+  "projectType": "cli-tool",
+  "projectName": "CADS",
+  "projectDescription": "A Deno CLI tool for cleaning and processing literary text files by removing headers, footers, and page numbers.",
+  "theme": "palm",
+  "primaryColor": "#8B4513",
+  "lightColor": "#D2691E",
+  "darkColor": "#654321",
+  "navigation": {
+    "groups": [
+      {
+        "group": "Getting Started",
+        "pages": [
+          "introduction",
+          "installation",
+          "quickstart"
+        ]
+      },
+      {
+        "group": "Usage",
+        "pages": [
+          "usage/command-reference",
+          "usage/text-processing",
+          "usage/examples"
+        ]
+      },
+      {
+        "group": "Configuration",
+        "pages": [
+          "configuration/cleaning-rules",
+          "configuration/regex-patterns",
+          "configuration/output-options"
+        ]
+      },
+      {
+        "group": "Advanced",
+        "pages": [
+          "advanced/batch-processing",
+          "advanced/custom-patterns",
+          "advanced/troubleshooting"
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Remove headers and footers from text files",
+    "Clean page numbers automatically",
+    "Remove Roman numerals from chapter starts",
+    "Preserve paragraph structure and formatting",
+    "Batch process multiple files",
+    "Regex-based pattern matching"
+  ],
+  "publicApiSurface": [
+    "cleanText(filePath: string)",
+    "clean_text.ts [file-path]",
+    "Deno.readTextFile()",
+    "Deno.writeTextFile()",
+    "Deno.mkdir()"
+  ]
+}
